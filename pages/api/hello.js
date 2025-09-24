@@ -1,4 +1,4 @@
-// Next.js API route support: https://nextjs.org/docs/api-routes/introduction
+// A3 P3 (Individual) Michael Ligayon HTTP API
 
 export default function handler(req, res) {
   const name = req.query.name || "input";
