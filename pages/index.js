@@ -1,5 +1,6 @@
 import Head from "next/head";
 import { useState } from "react";
+import Link from "next/link";
 
 export default function Home() {
   const [displayInfo, setDisplayInfo] = useState("");
@@ -72,6 +73,16 @@ export default function Home() {
             <p>{displayInfo}</p>
           </div>
         )}
+
+        <div style={{ margin: '3rem 0', borderTop: '1px solid #ccc', paddingTop: '2rem' }}>
+          <Link href="/testing" style={{ 
+            color: '#0070f3', 
+            textDecoration: 'underline',
+            fontSize: '1.2rem'
+          }}>
+            Go to Video Upload Testing →
+          </Link>
+        </div>
       </div>
     </>
   );
