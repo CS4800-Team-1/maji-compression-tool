@@ -42,6 +42,7 @@ export default function Testing() {
     if (!selectedFile) return;
     
     setProcessing(true);
+    try {
     const { fetchFile } = await import('@ffmpeg/util');
     const ffmpeg = ffmpegRef.current;
     
@@ -63,7 +64,15 @@ export default function Testing() {
     if (videoRef.current) {
       videoRef.current.src = URL.createObjectURL(new Blob([data.buffer], {type: 'video/mp4'}));
     }
-    setProcessing(false);
+  }
+  catch (error) {
+      console.error("Compression failed:", error);
+      if (messageRef.current) {
+        messageRef.current.innerHTML = "An error occurred during compression.";
+      }
+    } finally {
+      setProcessing(false);
+    }
   };
 
   return (
@@ -92,6 +101,7 @@ export default function Testing() {
             type="file"
             accept="video/*"
             onChange={handleFileSelect}
+            data-testid="file-input"
             style={{ margin: '1rem 0' }}
           />
           {selectedFile && (
