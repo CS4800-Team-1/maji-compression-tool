@@ -24,6 +24,109 @@ The `pages/api` directory is mapped to `/api/*`. Files in this directory are tre
 
 This project uses [`next/font`](https://nextjs.org/docs/pages/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Testing
+
+This project uses **Jest** and **React Testing Library** for unit testing the Next.js frontend components.
+
+### Running Tests
+
+```bash
+# Run all tests once
+npm test
+
+# Run tests in watch mode (re-runs automatically on file changes)
+npm test -- --watch
+
+# Run tests with coverage report
+npm test -- --coverage
+
+# Run a specific test file
+npm test testing.test.js
+```
+
+### Test Structure
+
+Tests are located in the `__tests__/` directory:
+- `__tests__/testing.test.js` - Tests for the video upload/processing page
+- `__tests__/index.test.js` - Tests for the home page (add your own!)
+
+### Writing Your Own Tests
+
+Here's a basic example of how to write a test:
+
+```javascript
+import { render, screen, fireEvent } from '@testing-library/react'
+import MyComponent from '../pages/MyComponent'
+
+// Mock Next.js components if needed
+jest.mock('next/head', () => {
+  return {
+    __esModule: true,
+    default: ({ children }) => <>{children}</>,
+  }
+})
+
+describe('MyComponent', () => {
+  it('renders correctly', () => {
+    render(<MyComponent />)
+    expect(screen.getByText('Some Text')).toBeInTheDocument()
+  })
+
+  it('handles button click', () => {
+    render(<MyComponent />)
+    const button = screen.getByText('Click Me')
+    fireEvent.click(button)
+    expect(screen.getByText('Clicked!')).toBeInTheDocument()
+  })
+})
+```
+
+### When to Run Tests
+
+- ✅ **Before committing code** - Ensure your changes don't break existing functionality
+- ✅ **After pulling changes** - Verify the codebase still works after merging
+- ✅ **When adding new features** - Write tests for new components/functionality
+- ✅ **Before creating a PR** - Make sure all tests pass
+
+### Test Configuration Files
+
+- **`jest.config.js`** - Main Jest configuration with Next.js integration
+- **`jest.setup.js`** - Setup file that loads testing library matchers
+
+### Common Testing Patterns
+
+**Testing text content:**
+```javascript
+expect(screen.getByText('Hello World')).toBeInTheDocument()
+```
+
+**Testing user input:**
+```javascript
+const input = screen.getByRole('textbox')
+fireEvent.change(input, { target: { value: 'test' } })
+expect(input.value).toBe('test')
+```
+
+**Testing button clicks:**
+```javascript
+const button = screen.getByRole('button')
+fireEvent.click(button)
+```
+
+**Testing file uploads:**
+```javascript
+const file = new File(['content'], 'test.mp4', { type: 'video/mp4' })
+const input = document.querySelector('input[type="file"]')
+fireEvent.change(input, { target: { files: [file] } })
+```
+
+### Useful Resources
+
+- [Jest Documentation](https://jestjs.io/docs/getting-started)
+- [React Testing Library](https://testing-library.com/docs/react-testing-library/intro/)
+- [Testing Next.js Apps](https://nextjs.org/docs/testing)
+- [Common Testing Library Queries](https://testing-library.com/docs/queries/about)
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:
