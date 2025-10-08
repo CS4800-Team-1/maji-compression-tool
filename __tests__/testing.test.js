@@ -54,4 +54,10 @@ describe('Testing Page', () => {
     expect(screen.getByText(/Selected: test.mp4/i)).toBeInTheDocument()
     expect(screen.getByText(/Size: 5.00 MB/i)).toBeInTheDocument()
   })
+
+  it('renders the file input element', () => {
+    render(<Testing />)
+    const fileInput = document.querySelector('input[type="file"]')
+    expect(fileInput).toBeInTheDocument()
+  })
 })
