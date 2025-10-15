@@ -1,5 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+   experimental: {
+    allowedDevOrigins: [
+      'http://ec2-13-56-11-218.us-west-1.compute.amazonaws.com',
+      // add other dev origins if needed
+    ],
+  },
   async headers() {
     return [
       {
