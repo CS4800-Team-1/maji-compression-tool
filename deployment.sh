@@ -5,7 +5,7 @@ set -e
 echo "🚀 Starting deployment..."
 
 # Configuration
-APP_DIR="/Users/jamessalac/Downloads/SchoolWork/cs4800/team_proj/maji-compression-tool"
+APP_DIR="/home/ec2-user/maji-compression-tool"
 SCREEN_NAME="tinyvid"
 
 cd $APP_DIR
