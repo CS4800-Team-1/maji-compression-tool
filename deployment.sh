@@ -15,7 +15,7 @@ echo "📥 Pulling latest code from GitHub..."
 git pull origin main
 
 echo "📦 Installing dependencies..."
-pnpm ci
+pnpm install
 
 echo "🔨 Building application..."
 pnpm run build
