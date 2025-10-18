@@ -32,16 +32,16 @@ This project uses **Jest** and **React Testing Library** for unit testing the Ne
 
 ```bash
 # Run all tests once
-npm test
+pnpm test
 
 # Run tests in watch mode (re-runs automatically on file changes)
-npm test -- --watch
+pnpm test -- --watch
 
 # Run tests with coverage report
-npm test -- --coverage
+pnpm test -- --coverage
 
 # Run a specific test file
-npm test testing.test.js
+pnpm test testing.test.js
 ```
 
 ### Test Structure

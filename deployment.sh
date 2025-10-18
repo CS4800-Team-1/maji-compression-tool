@@ -15,10 +15,10 @@ echo "📥 Pulling latest code from GitHub..."
 git pull origin main
 
 echo "📦 Installing dependencies..."
-npm ci
+pnpm ci
 
 echo "🔨 Building application..."
-npm run build
+pnpm run build
 
 echo "♻️  Restarting application..."
 
@@ -32,7 +32,7 @@ fi
 
 # Start new screen session in detached mode
 echo "Starting new screen session..."
-screen -dmS $SCREEN_NAME npm start
+screen -dmS $SCREEN_NAME pnpm start
 
 # Wait a moment for it to start
 sleep 2
