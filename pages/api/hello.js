@@ -3,8 +3,8 @@
 export default function handler(req, res) {
   const name = req.query.name || "input";
   res.status(200).json({ 
-    name: 'Hi',
-    about: 'World!'
+    name: 'GitHub',
+    about: 'ACTIONS!'
   });
 }
   
