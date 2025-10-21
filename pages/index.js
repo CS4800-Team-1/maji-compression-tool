@@ -1,6 +1,8 @@
 import Head from "next/head";
 import { useState } from "react";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function Home() {
   const [displayInfo, setDisplayInfo] = useState("");
@@ -23,67 +25,50 @@ export default function Home() {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
-      <div style={{ padding: '2rem', textAlign: 'center' }}>
-        <h1>Video Compression Service</h1>
-        
-        <div style={{ margin: '2rem 0' }}>
-          <h3>Michael Ligayon</h3>
-          <button onClick={() => callApi('michael')} style={{ margin: '0.5rem', padding: '0.5rem 1rem' }}>
-            Get Michael&apos;s Info
-          </button>
+      <main className="container mx-auto p-4 md:p-8">
+        <div className="text-center mb-12">
+          <h1 className="text-4xl font-bold tracking-tight lg:text-5xl">
+            Video Compression Service
+          </h1>
+          <p className="text-muted-foreground mt-2">
+            A project by Team MAJI for CS4800.
+          </p>
         </div>
 
-        <div style={{ margin: '2rem 0' }}>
-          <h3>James Salac</h3>
-          <button onClick={() => callApi('james')} style={{ margin: '0.5rem', padding: '0.5rem 1rem' }}>
-            Get James&apos;s Info
-          </button>
-        </div>
+        <div className="max-w-4xl mx-auto">
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle>Meet the Team</CardTitle>
+              <CardDescription>Click a button to get info about a team member.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <Button onClick={() => callApi('michael')}>Michael Ligayon</Button>
+              <Button onClick={() => callApi('james')}>James Salac</Button>
+              <Button onClick={() => callApi('andrew')}>Andrew Tarng</Button>
+              <Button onClick={() => callApi('ian')}>Ian Chow</Button>
+            </CardContent>
+          </Card>
 
-        <div style={{ margin: '2rem 0' }}>
-          <h3>Andrew Tarng</h3>
-          <button onClick={() => callApi('andrew')} style={{ margin: '0.5rem', padding: '0.5rem 1rem' }}>
-            Get Andrew&apos;s Info
-          </button>
-        </div>
+          {displayInfo && (
+            <Card className="mb-8 bg-secondary">
+              <CardHeader>
+                <CardTitle>API Response</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="font-mono">{displayInfo}</p>
+              </CardContent>
+            </Card>
+          )}
 
-        <div style={{ margin: '2rem 0' }}>
-          <h3>Ian Chow</h3>
-          <button onClick={() => callApi('ian')} style={{ margin: '0.5rem', padding: '0.5rem 1rem' }}>
-            Get Ian&apos;s Info
-          </button>
-        </div>
-
-        <div style={{ margin: '2rem 0' }}>
-          <h3>Hello API</h3>
-          <button onClick={() => callApi('hello')} style={{ margin: '0.5rem', padding: '0.5rem 1rem' }}>
-            Call Hello API
-          </button>
-        </div>
-
-        {displayInfo && (
-          <div style={{ 
-            marginTop: '2rem', 
-            padding: '1rem', 
-            backgroundColor: '#f0f0f0', 
-            borderRadius: '5px',
-            maxWidth: '500px',
-            margin: '2rem auto'
-          }}>
-            <p>{displayInfo}</p>
+          <div className="text-center mt-12">
+            <Button asChild size="lg">
+              <Link href="/testing">
+                Go to Video Compression Tool →
+              </Link>
+            </Button>
           </div>
-        )}
-
-        <div style={{ margin: '3rem 0', borderTop: '1px solid #ccc', paddingTop: '2rem' }}>
-          <Link href="/testing" style={{ 
-            color: '#0070f3', 
-            textDecoration: 'underline',
-            fontSize: '1.2rem'
-          }}>
-            Go to Video Upload Testing →
-          </Link>
         </div>
-      </div>
+      </main>
     </>
   );
 }

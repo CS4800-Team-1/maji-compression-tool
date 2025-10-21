@@ -1,11 +1,19 @@
 import Head from "next/head";
 import { useState, useRef } from "react";
 import Link from "next/link";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
+import { Separator } from "@/components/ui/separator";
 
 export default function Testing() {
   const [selectedFile, setSelectedFile] = useState(null);
   const [loaded, setLoaded] = useState(false);
   const [processing, setProcessing] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [duration, setDuration] = useState(0);
   const ffmpegRef = useRef(null);
   const videoRef = useRef(null);
   const messageRef = useRef(null);
@@ -13,6 +21,27 @@ export default function Testing() {
   const handleFileSelect = (event) => {
     const file = event.target.files[0];
     setSelectedFile(file);
+  };
+
+  const parseDuration = (message) => {
+    const durationMatch = message.match(/Duration: (\d{2}):(\d{2}):(\d{2})\.(\d{2})/);
+    if (durationMatch) {
+      const [, hours, minutes, seconds, milliseconds] = durationMatch;
+      const totalSeconds = parseInt(hours) * 3600 + parseInt(minutes) * 60 + parseInt(seconds) + parseInt(milliseconds) / 100;
+      setDuration(totalSeconds);
+      return totalSeconds;
+    }
+    return null;
+  };
+
+  const parseProgress = (message, videoDuration) => {
+    if (!videoDuration) return;
+    const timeMatch = message.match(/time=(\d{2}):(\d{2}):(\d{2})\.(\d{2})/);
+    if (timeMatch) {
+      const [, hours, minutes, seconds, milliseconds] = timeMatch;
+      const currentTime = parseInt(hours) * 3600 + parseInt(minutes) * 60 + parseInt(seconds) + parseInt(milliseconds) / 100;
+      setProgress(Math.min(100, (currentTime / videoDuration) * 100));
+    }
   };
 
   const loadFFmpeg = async () => {
@@ -24,10 +53,15 @@ export default function Testing() {
     ffmpegRef.current = ffmpeg;
     
     ffmpeg.on('log', ({ message }) => {
+      let localDuration = duration;
+      if (localDuration === 0) {
+        localDuration = parseDuration(message);
+      }
+      parseProgress(message, localDuration);
+
       if (messageRef.current) {
         messageRef.current.innerHTML = message;
       }
-      console.log(message);
     });
     
     await ffmpeg.load({
@@ -41,6 +75,8 @@ export default function Testing() {
   const processVideo = async () => {
     if (!selectedFile) return;
     
+    setProgress(0);
+    setDuration(0);
     setProcessing(true);
     try {
     const { fetchFile } = await import('@ffmpeg/util');
@@ -83,58 +119,73 @@ export default function Testing() {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
-      <div style={{ padding: '2rem', textAlign: 'center' }}>
-        <h1>Video Upload & Processing Testing</h1>
-        
-        <Link href="/" style={{ 
-          color: '#0070f3', 
-          textDecoration: 'underline',
-          marginBottom: '2rem',
-          display: 'inline-block'
-        }}>
-          ← Back to Home
-        </Link>
+      <main className="container mx-auto p-4 md:p-8 text-center">
+        <h1 className="text-4xl font-bold mb-4">Video Compression Testing</h1>
+        <p className="text-muted-foreground mb-8">
+          Upload a video, load FFmpeg, and process it in your browser.
+        </p>
+        <Button asChild variant="link" className="mb-8">
+          <Link href="/">← Back to Home</Link>
+        </Button>
 
-        <div style={{ margin: '3rem 0' }}>
-          <h2>Upload Video</h2>
-          <input
-            type="file"
-            accept="video/*"
-            onChange={handleFileSelect}
-            data-testid="file-input"
-            style={{ margin: '1rem 0' }}
-          />
-          {selectedFile && (
-            <div style={{ margin: '1rem 0' }}>
-              <p>Selected: {selectedFile.name}</p>
-              <p>Size: {(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p>
-            </div>
-          )}
-        </div>
-
-        <div style={{ margin: '3rem 0', borderTop: '1px solid #ccc', paddingTop: '2rem' }}>
-          <h2>Video Compression</h2>
-          {!loaded ? (
-            <button onClick={loadFFmpeg} style={{ margin: '1rem', padding: '0.5rem 1rem' }}>
-              Load FFmpeg (~31 MB)
-            </button>
-          ) : (
-            <div>
-              <button 
-                onClick={processVideo} 
-                disabled={!selectedFile || processing}
-                style={{ margin: '1rem', padding: '0.5rem 1rem' }}
+        <div className="grid gap-8 md:grid-cols-2 max-w-4xl mx-auto">
+          <Card>
+            <CardHeader>
+              <CardTitle>1. Upload Video</CardTitle>
+              <CardDescription>Select a video file from your device.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4 text-center">
+              {/* The actual file input is hidden */}
+              <Input
+                id="video-file"
+                type="file"
+                accept="video/*"
+                onChange={handleFileSelect}
+                data-testid="file-input"
+                className="hidden"
+              />
+              {/* This label acts as the visible button */}
+              <Label
+                htmlFor="video-file"
+                className={buttonVariants({ variant: "outline", className: "cursor-pointer" })}
               >
-                {processing ? 'Processing...' : 'Process Video'}
-              </button>
-              <div style={{ margin: '2rem 0' }}>
-                <video ref={videoRef} controls style={{ maxWidth: '500px' }}></video>
+                Choose File
+              </Label>
+              {selectedFile && (
+                <div className="text-sm text-muted-foreground pt-2">
+                  <p>Selected: {selectedFile.name}</p>
+                  <p>Size: {(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>2. Compress Video</CardTitle>
+              <CardDescription>
+                {!loaded ? "Load the FFmpeg library first." : "Process the selected video."}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4">
+              {!loaded ? (
+                <Button onClick={loadFFmpeg}>Load FFmpeg (~31 MB)</Button>
+              ) : (
+                <>
+                  <Button onClick={processVideo} disabled={!selectedFile || processing}>
+                    {processing ? 'Processing...' : 'Process Video'}
+                  </Button>
+                  {processing && <Progress value={progress} className="w-full" />}
+                </>
+              )}
+              <div className="mt-4">
+                <video ref={videoRef} controls className="w-full rounded-md bg-muted"></video>
               </div>
-              <p ref={messageRef} style={{ fontSize: '0.8rem', color: '#666' }}></p>
-            </div>
-          )}
+              <p ref={messageRef} className="text-xs text-muted-foreground h-8 overflow-y-auto border rounded-md p-2 bg-slate-50"></p>
+            </CardContent>
+          </Card>
         </div>
-      </div>
+      </main>
     </>
   );
 }
