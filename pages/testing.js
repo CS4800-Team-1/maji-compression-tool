@@ -88,7 +88,7 @@ export default function Testing() {
       '-i', 'input.webm',
       '-c:v', 'libx264',      // H.264 codec
       '-crf', '28',            // Higher CRF = smaller file (18-28 recommended)
-      '-preset', 'fast',       // Encoding speed (ultrafast, fast, medium, slow)
+      '-preset', 'ultrafast',       // Encoding speed (ultrafast, fast, medium, slow)
       '-c:a', 'copy',          // Copy audio stream to prevent hanging
       'output.mp4'
     ]);
