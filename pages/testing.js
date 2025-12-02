@@ -89,8 +89,7 @@ export default function Testing() {
       '-c:v', 'libx264',      // H.264 codec
       '-crf', '28',            // Higher CRF = smaller file (18-28 recommended)
       '-preset', 'ultrafast',       // Encoding speed (ultrafast, fast, medium, slow)
-      '-c:a', 'aac',          // Audio codec
-      '-b:a', '128k',         // Audio bitrate
+      '-c:a', 'copy',          // Copy audio stream to prevent hanging
       'output.mp4'
     ]);
     const end = new Date().getTime();
