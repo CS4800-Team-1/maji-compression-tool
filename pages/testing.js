@@ -14,6 +14,8 @@ export default function Testing() {
   const [processing, setProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [compressedVideo, setCompressedVideo] = useState(null);
+  const [compressedSize, setCompressedSize] = useState(0);
   const ffmpegRef = useRef(null);
   const videoRef = useRef(null);
   const messageRef = useRef(null);
@@ -101,8 +103,14 @@ export default function Testing() {
     console.log(0.001*(end - beg));
     const data = await ffmpeg.readFile('output.mp4');
     
+    const blob = new Blob([data.buffer], {type: 'video/mp4'});
+    const url = URL.createObjectURL(blob);
+    
+    setCompressedVideo(url);
+    setCompressedSize(data.length);
+    
     if (videoRef.current) {
-      videoRef.current.src = URL.createObjectURL(new Blob([data.buffer], {type: 'video/mp4'}));
+      videoRef.current.src = url;
     }
   }
   catch (error) {
@@ -113,6 +121,17 @@ export default function Testing() {
     } finally {
       setProcessing(false);
     }
+  };
+
+  const downloadVideo = () => {
+    if (!compressedVideo) return;
+    
+    const a = document.createElement('a');
+    a.href = compressedVideo;
+    a.download = `compressed_${selectedFile?.name || 'video.mp4'}`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   };
 
   return (
@@ -179,6 +198,16 @@ export default function Testing() {
               <div className="mt-4">
                 <video ref={videoRef} controls className="w-full rounded-md bg-muted"></video>
               </div>
+              <Button 
+                onClick={downloadVideo} 
+                disabled={!compressedVideo}
+                variant="outline"
+              >
+                {compressedVideo 
+                  ? `Download Compressed Video (${(compressedSize / 1024 / 1024).toFixed(2)} MB)`
+                  : 'Download Compressed Video'
+                }
+              </Button>
               <p ref={messageRef} className="text-xs text-muted-foreground h-8 overflow-y-auto border rounded-md p-2 bg-slate-50"></p>
             </CardContent>
           </Card>
