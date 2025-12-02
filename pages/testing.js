@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
+import { Slider } from "@/components/ui/slider";
 
 export default function Testing() {
   const [selectedFile, setSelectedFile] = useState(null);
@@ -231,17 +232,42 @@ export default function Testing() {
               <Separator className="my-2" />
               <div className="space-y-2">
                 <Label htmlFor="target-size">Target File Size (MB)</Label>
-                <Input
-                  id="target-size"
-                  type="number"
-                  min="1"
-                  max="100"
-                  value={targetSize}
-                  onChange={(e) => setTargetSize(Number(e.target.value))}
-                  placeholder="9"
-                />
+                <div className="flex items-center gap-4">
+                  <Slider
+                    min={1}
+                    max={100}
+                    step={1}
+                    value={[targetSize || 1]}
+                    onValueChange={(value) => setTargetSize(value[0])}
+                    className="flex-1"
+                  />
+                  <Input
+                    id="target-size"
+                    type="number"
+                    min="1"
+                    max="100"
+                    value={targetSize}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === '') {
+                        setTargetSize('');
+                      } else {
+                        const num = Number(val);
+                        if (num >= 1 && num <= 100) {
+                          setTargetSize(num);
+                        }
+                      }
+                    }}
+                    onBlur={(e) => {
+                      if (e.target.value === '' || Number(e.target.value) < 1) {
+                        setTargetSize(1);
+                      }
+                    }}
+                    className="w-20"
+                  />
+                </div>
                 <p className="text-xs text-muted-foreground">
-                  Video will be compressed to approximately {targetSize} MB
+                  Video will be compressed to approximately {targetSize || 1} MB
                 </p>
               </div>
             </CardContent>
