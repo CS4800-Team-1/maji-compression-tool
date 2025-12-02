@@ -1,5 +1,5 @@
 import Head from "next/head";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,6 +22,11 @@ export default function Testing() {
     const file = event.target.files[0];
     setSelectedFile(file);
   };
+
+  // Auto-load FFmpeg when component mounts
+  useEffect(() => {
+    loadFFmpeg();
+  }, []);
 
   const parseDuration = (message) => {
     const durationMatch = message.match(/Duration: (\d{2}):(\d{2}):(\d{2})\.(\d{2})/);
@@ -163,20 +168,14 @@ export default function Testing() {
             <CardHeader>
               <CardTitle>2. Compress Video</CardTitle>
               <CardDescription>
-                {!loaded ? "Load the FFmpeg library first." : "Process the selected video."}
+                {!loaded ? "Loading FFmpeg..." : "Ready to process your video."}
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4">
-              {!loaded ? (
-                <Button onClick={loadFFmpeg}>Load FFmpeg (~31 MB)</Button>
-              ) : (
-                <>
-                  <Button onClick={processVideo} disabled={!selectedFile || processing}>
-                    {processing ? 'Processing...' : 'Process Video'}
-                  </Button>
-                  {processing && <Progress value={progress} className="w-full" />}
-                </>
-              )}
+              <Button onClick={processVideo} disabled={!selectedFile || processing || !loaded}>
+                {processing ? 'Processing...' : !loaded ? 'Loading FFmpeg...' : 'Process Video'}
+              </Button>
+              {processing && <Progress value={progress} className="w-full" />}
               <div className="mt-4">
                 <video ref={videoRef} controls className="w-full rounded-md bg-muted"></video>
               </div>
