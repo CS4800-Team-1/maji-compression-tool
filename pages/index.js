@@ -20,7 +20,7 @@ export default function Home() {
   return (
     <>
       <Head>
-        <title>Team MAJI Video Compression Service</title>
+        <title>Team MAJI Video Compression Servic</title>
         <meta name="description" content="CS4800 Team 1 API Demo" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href="/favicon.ico" />
