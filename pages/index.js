@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { Slider } from "@/components/ui/slider";
+import { ChevronDown } from "lucide-react";
 
 export default function Home() {
   const [selectedFile, setSelectedFile] = useState(null);
@@ -18,6 +19,23 @@ export default function Home() {
   const [compressedVideo, setCompressedVideo] = useState(null);
   const [compressedSize, setCompressedSize] = useState(0);
   const [targetSize, setTargetSize] = useState(9);
+  
+  // Verticalize feature states
+  const [aspectRatio, setAspectRatio] = useState('16:9');
+  const [shortsMode, setShortsMode] = useState('center-crop');
+  
+  // Audio normalization state
+  const [normalizeAudio, setNormalizeAudio] = useState(false);
+  
+  // Trim feature states
+  const [enableTrim, setEnableTrim] = useState(false);
+  const [trimStart, setTrimStart] = useState('00:00');
+  const [trimEnd, setTrimEnd] = useState('00:00');
+  
+  // Smart center crop states
+  const [enableCrop, setEnableCrop] = useState(false);
+  const [cropPercentage, setCropPercentage] = useState(0);
+  
   const ffmpegRef = useRef(null);
   const videoRef = useRef(null);
   const messageRef = useRef(null);
@@ -127,29 +145,92 @@ export default function Home() {
     }
     
     // Calculate target bitrate based on target file size
-    // Formula: bitrate (kbps) = (target size in MB * 8192) / duration in seconds
-    // Account for audio (assume ~128kbps) and subtract from video budget
     const targetSizeKB = targetSize * 1024; // Convert MB to KB
-    const audioBitrate = 128; // Assume audio is ~128kbps (we're copying it)
+    const audioBitrate = 128; // Assume audio is ~128kbps
     const audioBudgetKB = (audioBitrate * videoDuration) / 8; // Audio size in KB
     const videoBudgetKB = targetSizeKB - audioBudgetKB; // Remaining budget for video
     const targetBitrate = Math.floor((videoBudgetKB * 8) / videoDuration); // kbps
     
     console.log(`Video duration: ${videoDuration}s, Target size: ${targetSize}MB, Calculated bitrate: ${targetBitrate}kbps`);
     
-    const beg = new Date().getTime();
-    await ffmpeg.exec([
-      '-i', 'input.webm',
-      '-c:v', 'libx264',      // H.264 codec
-      '-b:v', `${targetBitrate}k`,  // Target video bitrate
-      '-maxrate', `${targetBitrate}k`, // Maximum bitrate
-      '-bufsize', `${targetBitrate * 2}k`, // Buffer size
-      '-preset', 'ultrafast',       // Encoding speed (ultrafast, fast, medium, slow)
-      '-c:a', 'copy',          // Copy audio stream to prevent hanging
-      'output.mp4'
-    ]);
-    const end = new Date().getTime();
-    console.log(0.001*(end - beg));
+    // PASS 1: Video processing (trim, crop, aspect ratio)
+    console.log('=== PASS 1: Video Processing ===');
+    const ffmpegCommand = ['-i', 'input.webm'];
+    
+    // Add trim if enabled
+    if (enableTrim && trimStart && trimEnd) {
+      const startSeconds = timeStringToSeconds(trimStart);
+      ffmpegCommand.push('-ss', startSeconds.toString());
+      const endSeconds = timeStringToSeconds(trimEnd);
+      const duration = Math.max(0, endSeconds - startSeconds);
+      ffmpegCommand.push('-t', duration.toString());
+    }
+    
+    // Build video filter chain - add crop before aspect ratio
+    const videoFilters = [];
+    
+    // Add crop if enabled
+    if (enableCrop && cropPercentage > 0) {
+      videoFilters.push(buildCropFilter(cropPercentage));
+    }
+    
+    // Add aspect ratio conversion
+    const aspectRatioFilter = buildAspectRatioFilter();
+    if (aspectRatioFilter) {
+      videoFilters.push(aspectRatioFilter);
+    }
+    
+    if (videoFilters.length > 0) {
+      ffmpegCommand.push('-vf', videoFilters.join(','));
+    }
+    
+    // Add video codec options - minimal and stable
+    ffmpegCommand.push(
+      '-c:v', 'libx264',
+      '-b:v', `${targetBitrate}k`,
+      '-preset', 'ultrafast'
+    );
+    
+    // In Pass 1, always copy audio without processing to keep it stable
+    ffmpegCommand.push('-c:a', 'copy');
+    
+    ffmpegCommand.push('pass1_output.mp4');
+    
+    console.log('Pass 1 FFmpeg command:', ffmpegCommand);
+    
+    let beg = new Date().getTime();
+    await ffmpeg.exec(ffmpegCommand);
+    let end = new Date().getTime();
+    console.log(`Pass 1 took ${0.001*(end - beg)}s`);
+    
+    // PASS 2: Audio normalization (if enabled)
+    if (normalizeAudio) {
+      console.log('=== PASS 2: Audio Normalization ===');
+      setProgress(50); // Indicate we're halfway through
+      
+      const pass2Command = ['-i', 'pass1_output.mp4'];
+      
+      // Apply only audio normalization, copy video as-is
+      pass2Command.push(
+        '-c:v', 'copy',
+        '-af', 'loudnorm=I=-16:TP=-1.5:LRA=11',
+        '-c:a', 'aac',
+        '-b:a', '128k',
+        'output.mp4'
+      );
+      
+      console.log('Pass 2 FFmpeg command:', pass2Command);
+      
+      beg = new Date().getTime();
+      await ffmpeg.exec(pass2Command);
+      end = new Date().getTime();
+      console.log(`Pass 2 took ${0.001*(end - beg)}s`);
+    } else {
+      // If no audio normalization, just rename pass1 output to final output
+      const data = await ffmpeg.readFile('pass1_output.mp4');
+      await ffmpeg.writeFile('output.mp4', data);
+    }
+    
     const data = await ffmpeg.readFile('output.mp4');
     
     const blob = new Blob([data.buffer], {type: 'video/mp4'});
@@ -157,6 +238,7 @@ export default function Home() {
     
     setCompressedVideo(url);
     setCompressedSize(data.length);
+    setProgress(100);
     
     if (videoRef.current) {
       videoRef.current.src = url;
@@ -181,6 +263,61 @@ export default function Home() {
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
+  };
+
+  // Helper function to get resolution dimensions based on aspect ratio
+  const getResolutionDimensions = () => {
+    const ratios = {
+      '16:9': { width: 1920, height: 1080 },
+      '9:16': { width: 1080, height: 1920 },
+      '1:1': { width: 1080, height: 1080 },
+      '4:3': { width: 1440, height: 1080 }
+    };
+    return ratios[aspectRatio] || ratios['16:9'];
+  };
+
+  // Helper function to build video filter graph for aspect ratio conversion
+  const buildAspectRatioFilter = () => {
+    if (aspectRatio === '16:9') {
+      return 'scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2';
+    }
+    
+    if (aspectRatio === '9:16') {
+      if (shortsMode === 'center-crop') {
+        // Center crop to 1080x1920
+        return 'scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920:(in_w-ow)/2:(in_h-oh)/2';
+      } else {
+        // Scale to fit with black padding
+        return 'scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2';
+      }
+    }
+    
+    if (aspectRatio === '1:1') {
+      return 'scale=1080:1080:force_original_aspect_ratio=decrease,pad=1080:1080:(ow-iw)/2:(oh-ih)/2';
+    }
+    
+    if (aspectRatio === '4:3') {
+      return 'scale=1440:1080:force_original_aspect_ratio=decrease,pad=1440:1080:(ow-iw)/2:(oh-ih)/2';
+    }
+    
+    return null;
+  };
+
+  // Helper function to convert MM:SS or HH:MM:SS to seconds
+  const timeStringToSeconds = (timeStr) => {
+    const parts = timeStr.split(':').map(Number);
+    if (parts.length === 2) {
+      return parts[0] * 60 + parts[1];
+    } else if (parts.length === 3) {
+      return parts[0] * 3600 + parts[1] * 60 + parts[2];
+    }
+    return 0;
+  };
+
+  // Helper function to build center crop filter
+  const buildCropFilter = (percentage) => {
+    const cropAmount = percentage / 100;
+    return `crop=w=in_w*(1-${cropAmount}):h=in_h*(1-${cropAmount}):x=in_w*${cropAmount/2}:y=in_h*${cropAmount/2}`;
   };
 
   return (
@@ -267,6 +404,157 @@ export default function Home() {
                 <p className="text-xs text-muted-foreground">
                   Video will be compressed to approximately {targetSize || 1} MB
                 </p>
+              </div>
+
+              <Separator className="my-4" />
+
+              {/* Trim Feature */}
+              <div className="space-y-3">
+                <label className="flex items-center gap-3 cursor-pointer p-2 rounded hover:bg-gray-50">
+                  <input
+                    type="checkbox"
+                    checked={enableTrim}
+                    onChange={(e) => setEnableTrim(e.target.checked)}
+                    className="w-4 h-4"
+                  />
+                  <div className="flex-1">
+                    <p className="text-xs font-medium">Trim Video</p>
+                    <p className="text-xs text-muted-foreground">Cut from start and/or end (MM:SS format)</p>
+                  </div>
+                </label>
+
+                {enableTrim && (
+                  <div className="space-y-2 pl-7">
+                    <div>
+                      <Label htmlFor="trim-start" className="text-xs font-medium">Start Time</Label>
+                      <Input
+                        id="trim-start"
+                        type="text"
+                        placeholder="00:00"
+                        value={trimStart}
+                        onChange={(e) => setTrimStart(e.target.value)}
+                        className="text-xs"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="trim-end" className="text-xs font-medium">End Time</Label>
+                      <Input
+                        id="trim-end"
+                        type="text"
+                        placeholder="00:00"
+                        value={trimEnd}
+                        onChange={(e) => setTrimEnd(e.target.value)}
+                        className="text-xs"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <Separator className="my-4" />
+
+              {/* Smart Center Crop Feature */}
+              <div className="space-y-3">
+                <label className="flex items-center gap-3 cursor-pointer p-2 rounded hover:bg-gray-50">
+                  <input
+                    type="checkbox"
+                    checked={enableCrop}
+                    onChange={(e) => setEnableCrop(e.target.checked)}
+                    className="w-4 h-4"
+                  />
+                  <div className="flex-1">
+                    <p className="text-xs font-medium">Smart Center Crop</p>
+                    <p className="text-xs text-muted-foreground">Remove edges from center (applied before format)</p>
+                  </div>
+                </label>
+
+                {enableCrop && (
+                  <div className="space-y-2 pl-7">
+                    <Label className="text-xs font-medium">Crop Amount: {cropPercentage}%</Label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="40"
+                      step="1"
+                      value={cropPercentage}
+                      onChange={(e) => setCropPercentage(Number(e.target.value))}
+                      className="w-full"
+                    />
+                    <p className="text-xs text-muted-foreground">0% = no crop, 40% = removes 40% from edges</p>
+                  </div>
+                )}
+              </div>
+
+              <Separator className="my-4" />
+
+              {/* Verticalize Feature */}
+              <div className="space-y-3">
+                <Label htmlFor="aspect-ratio" className="text-sm font-semibold">📹 Video Format</Label>
+                <div>
+                  <Label htmlFor="aspect-ratio" className="text-xs text-muted-foreground mb-2 block">Aspect Ratio</Label>
+                  <select
+                    id="aspect-ratio"
+                    value={aspectRatio}
+                    onChange={(e) => setAspectRatio(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="16:9">16:9 (Landscape)</option>
+                    <option value="9:16">9:16 (Portrait - Shorts/Reels)</option>
+                    <option value="1:1">1:1 (Square)</option>
+                    <option value="4:3">4:3 (Classic)</option>
+                  </select>
+                </div>
+
+                {aspectRatio === '9:16' && (
+                  <div>
+                    <Label className="text-xs text-muted-foreground mb-2 block">Portrait Mode</Label>
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="shorts-mode"
+                          value="center-crop"
+                          checked={shortsMode === 'center-crop'}
+                          onChange={(e) => setShortsMode(e.target.value)}
+                          className="w-4 h-4"
+                        />
+                        <span className="text-xs">Center Crop - Cuts sides for full coverage</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="shorts-mode"
+                          value="blur-scale"
+                          checked={shortsMode === 'blur-scale'}
+                          onChange={(e) => setShortsMode(e.target.value)}
+                          className="w-4 h-4"
+                        />
+                        <span className="text-xs">Blur & Scale - Letterboxed with padding</span>
+                      </label>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <Separator className="my-4" />
+
+              {/* Audio Features */}
+              <div className="space-y-3">
+                <Label className="text-sm font-semibold">🔊 Audio</Label>
+                
+                {/* Loudness Normalization */}
+                <label className="flex items-center gap-3 cursor-pointer p-2 rounded hover:bg-gray-50">
+                  <input
+                    type="checkbox"
+                    checked={normalizeAudio}
+                    onChange={(e) => setNormalizeAudio(e.target.checked)}
+                    className="w-4 h-4"
+                  />
+                  <div className="flex-1">
+                    <p className="text-xs font-medium">Normalize Audio Levels</p>
+                    <p className="text-xs text-muted-foreground">Standardizes audio for optimal platform playback</p>
+                  </div>
+                </label>
               </div>
             </CardContent>
           </Card>
