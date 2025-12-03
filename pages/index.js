@@ -112,7 +112,7 @@ export default function Home() {
     
     await ffmpeg.writeFile('input.webm', await fetchFile(selectedFile));
     
-    // Set up log handler to capture duration and progress
+    // Set up log handler to capture duration and progress 
     ffmpeg.on('log', ({ message }) => {
       // Capture duration
       const durationMatch = message.match(/Duration: (\d{2}):(\d{2}):(\d{2})\.(\d{2})/);
@@ -542,7 +542,7 @@ export default function Home() {
               <div className="space-y-3">
                 <Label className="text-sm font-semibold">🔊 Audio</Label>
                 
-                {/* Loudness Normalization */}
+                {/* Loudness Normalization  */}
                 <label className="flex items-center gap-3 cursor-pointer p-2 rounded hover:bg-gray-50">
                   <input
                     type="checkbox"
