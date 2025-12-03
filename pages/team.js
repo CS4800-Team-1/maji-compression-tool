@@ -31,7 +31,7 @@ export default function Team() {
             Video Compression Service
           </h1>
           <p className="text-muted-foreground mt-2">
-            A project by Team MAJI for CS4800
+            A project by Team MAJI for CS4800.
           </p>
         </div>
 
