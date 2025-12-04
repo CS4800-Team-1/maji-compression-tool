@@ -18,6 +18,7 @@ export default function Home() {
   const [duration, setDuration] = useState(0);
   const [compressedVideo, setCompressedVideo] = useState(null);
   const [compressedSize, setCompressedSize] = useState(0);
+  const [compressionStatus, setCompressionStatus] = useState('idle');
   const [targetSize, setTargetSize] = useState(9);
   
   // Verticalize feature states
@@ -35,6 +36,17 @@ export default function Home() {
   // Smart center crop states
   const [enableCrop, setEnableCrop] = useState(false);
   const [cropPercentage, setCropPercentage] = useState(0);
+  
+  // Platform selection state
+  const [selectedPlatforms, setSelectedPlatforms] = useState([]);
+  
+  const togglePlatform = (platform) => {
+    setSelectedPlatforms(prev =>
+      prev.includes(platform)
+        ? prev.filter(p => p !== platform)
+        : [...prev, platform]
+    );
+  };
   
   const ffmpegRef = useRef(null);
   const videoRef = useRef(null);
@@ -104,6 +116,7 @@ export default function Home() {
     
     setProgress(0);
     setProcessing(true);
+    setCompressionStatus('processing');
     let videoDuration = 0;
     
     try {
@@ -239,6 +252,7 @@ export default function Home() {
     setCompressedVideo(url);
     setCompressedSize(data.length);
     setProgress(100);
+    setCompressionStatus('success');
     
     if (videoRef.current) {
       videoRef.current.src = url;
@@ -246,6 +260,7 @@ export default function Home() {
   }
   catch (error) {
       console.error("Compression failed:", error);
+      setCompressionStatus('failed');
       if (messageRef.current) {
         messageRef.current.innerHTML = "An error occurred during compression.";
       }
@@ -263,6 +278,81 @@ export default function Home() {
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
+  };
+
+  const downloadVideoOnly = async () => {
+    if (!compressedVideo) return;
+    
+    try {
+      const ffmpeg = ffmpegRef.current;
+      
+      // Read the compressed video file
+      const data = await ffmpeg.readFile('output.mp4');
+      await ffmpeg.writeFile('temp_video.mp4', data);
+      
+      // Extract video without audio
+      await ffmpeg.exec([
+        '-i', 'temp_video.mp4',
+        '-c:v', 'copy',
+        '-an',
+        'video_only.mp4'
+      ]);
+      
+      const videoOnlyData = await ffmpeg.readFile('video_only.mp4');
+      const blob = new Blob([videoOnlyData.buffer], { type: 'video/mp4' });
+      const url = URL.createObjectURL(blob);
+      
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `video_only_${selectedFile?.name || 'video.mp4'}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      
+      // Cleanup
+      await ffmpeg.deleteFile('temp_video.mp4');
+      await ffmpeg.deleteFile('video_only.mp4');
+    } catch (error) {
+      console.error("Error downloading video only:", error);
+    }
+  };
+
+  const downloadAudioOnly = async () => {
+    if (!compressedVideo) return;
+    
+    try {
+      const ffmpeg = ffmpegRef.current;
+      
+      // Read the compressed video file
+      const data = await ffmpeg.readFile('output.mp4');
+      await ffmpeg.writeFile('temp_video.mp4', data);
+      
+      // Extract audio and convert to MP3
+      await ffmpeg.exec([
+        '-i', 'temp_video.mp4',
+        '-vn',
+        '-c:a', 'libmp3lame',
+        '-b:a', '192k',
+        'audio_only.mp3'
+      ]);
+      
+      const audioOnlyData = await ffmpeg.readFile('audio_only.mp3');
+      const blob = new Blob([audioOnlyData.buffer], { type: 'audio/mpeg' });
+      const url = URL.createObjectURL(blob);
+      
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `audio_only_${selectedFile?.name.split('.')[0] || 'audio'}.mp3`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      
+      // Cleanup
+      await ffmpeg.deleteFile('temp_video.mp4');
+      await ffmpeg.deleteFile('audio_only.mp3');
+    } catch (error) {
+      console.error("Error downloading audio only:", error);
+    }
   };
 
   // Helper function to get resolution dimensions based on aspect ratio
@@ -338,7 +428,7 @@ export default function Home() {
           <div className="grid gap-8 md:grid-cols-2 max-w-4xl mx-auto">
           <Card>
             <CardHeader>
-              <CardTitle>1. Upload Video</CardTitle>
+              <CardTitle>1. Video Configuration</CardTitle>
               <CardDescription>Select a video file from your device.</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4 text-center">
@@ -571,6 +661,29 @@ export default function Home() {
                 {processing ? 'Processing...' : !loaded ? 'Loading FFmpeg...' : 'Process Video'}
               </Button>
               {processing && <Progress value={progress} className="w-full" />}
+              
+              {/* Compression Status Feedback */}
+              {compressionStatus === 'processing' && (
+                <div className="flex items-center gap-2 p-3 rounded-lg bg-blue-50 border border-blue-200">
+                  <span className="text-lg">⚙️</span>
+                  <p className="text-xs font-medium text-blue-900">Compression Starting!</p>
+                </div>
+              )}
+              
+              {compressionStatus === 'success' && (
+                <div className="flex items-center gap-2 p-3 rounded-lg bg-green-50 border border-green-200">
+                  <span className="text-lg">✓</span>
+                  <p className="text-xs font-medium text-green-900">Compression Successful!</p>
+                </div>
+              )}
+              
+              {compressionStatus === 'failed' && (
+                <div className="flex items-center gap-2 p-3 rounded-lg bg-red-50 border border-red-200">
+                  <span className="text-lg">✕</span>
+                  <p className="text-xs font-medium text-red-900">Compression Failed</p>
+                </div>
+              )}
+              
               <div className="mt-4">
                 <video ref={videoRef} controls className="w-full rounded-md bg-muted"></video>
               </div>
@@ -584,10 +697,88 @@ export default function Home() {
                   : 'Download Compressed Video'
                 }
               </Button>
+              
+              {/* Mini Download Buttons */}
+              {compressedVideo && (
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    onClick={downloadVideoOnly}
+                    variant="outline"
+                    size="sm"
+                    className="text-xs"
+                  >
+                    Download Video without Audio
+                  </Button>
+                  <Button
+                    onClick={downloadAudioOnly}
+                    variant="outline"
+                    size="sm"
+                    className="text-xs"
+                  >
+                    Download Audio Only
+                  </Button>
+                </div>
+              )}
+              
               <p ref={messageRef} className="text-xs text-muted-foreground h-8 overflow-y-auto border rounded-md p-2 bg-slate-50"></p>
             </CardContent>
           </Card>
         </div>
+        </div>
+
+        <div className="flex justify-center max-w-4xl mx-auto w-full mt-12">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle>3. Upload Video</CardTitle>
+              <CardDescription>Select your platform.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4">
+              <div className="space-y-3">
+                {/* TikTok Platform */}
+                <button
+                  onClick={() => togglePlatform('tiktok')}
+                  className={`w-full p-4 rounded-lg border-2 transition-all ${
+                    selectedPlatforms.includes('tiktok')
+                      ? 'border-black bg-gray-200'
+                      : 'border-gray-300 bg-gray-50 hover:bg-gray-100'
+                  }`}
+                >
+                  <p className="font-medium text-sm">TikTok</p>
+                </button>
+
+                {/* YouTube Platform */}
+                <button
+                  onClick={() => togglePlatform('youtube')}
+                  className={`w-full p-4 rounded-lg border-2 transition-all ${
+                    selectedPlatforms.includes('youtube')
+                      ? 'border-black bg-gray-200'
+                      : 'border-gray-300 bg-gray-50 hover:bg-gray-100'
+                  }`}
+                >
+                  <p className="font-medium text-sm">YouTube</p>
+                </button>
+
+                {/* Instagram Platform */}
+                <button
+                  onClick={() => togglePlatform('instagram')}
+                  className={`w-full p-4 rounded-lg border-2 transition-all ${
+                    selectedPlatforms.includes('instagram')
+                      ? 'border-black bg-gray-200'
+                      : 'border-gray-300 bg-gray-50 hover:bg-gray-100'
+                  }`}
+                >
+                  <p className="font-medium text-sm">Instagram</p>
+                </button>
+              </div>
+
+              <Button
+                disabled={selectedPlatforms.length === 0}
+                className="w-full"
+              >
+                Upload
+              </Button>
+            </CardContent>
+          </Card>
         </div>
 
         <footer className="mt-12 pb-8">
