@@ -83,7 +83,7 @@ export default function Home() {
     }
   };
 
-  // Auto-load FFmpeg when component mounts
+  //  Auto-load FFmpeg when component mounts
   useEffect(() => {
     loadFFmpeg();
   }, []);
